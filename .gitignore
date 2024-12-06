@@ -1,16 +1,15 @@
 # Dependencias
-
-node_modules/
+node_modules
 
 # Archivos de entorno
 .env
 
 # Salidas de build
-dist/
-build/
+dist
+build
 
 # Logs
-logs/
+logs
 *.log
 
 # Archivos del sistema
