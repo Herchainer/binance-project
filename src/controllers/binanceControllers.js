@@ -10,8 +10,8 @@ const binanceLogin = async (req, res) => {
 
         const response = await binance.login();
 
-        console.log(response, 'controler')
-        return;
+        //console.log(response, 'controler')
+        //return;
 
         console.log('estoy en el controlador')
 
@@ -27,7 +27,7 @@ const binanceLogin = async (req, res) => {
 
 
 
-module.exports =  {
-    binanceLogin
-} 
+    module.exports =  {
+        binanceLogin
+    } 
 
