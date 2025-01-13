@@ -21,8 +21,6 @@ app.listen(port, () => {
 
 });
 
-//consult_user()
-
 //binanceLogin()
 
 
