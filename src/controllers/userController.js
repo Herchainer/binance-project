@@ -89,11 +89,9 @@ const register_user = async (req, res) => {
           }); 
     }
 
-    console.log(document, name, email, phone)
-    return;
-
     try {
-        const register = await pool.query(`select * from register_user(
+
+        const register = await pool.query(`select * from create_user(
             :document,
             :name,
             :email,
@@ -106,7 +104,7 @@ const register_user = async (req, res) => {
                     phone
                 },
                 type: QueryTypes.SELECT,
-                plain: true
+                plain: true 
             })
 
         if (register.code == 13) {
@@ -117,8 +115,8 @@ const register_user = async (req, res) => {
         }
 
         return res.json({
-            status: 10,
-            data: consult.rows // Enviar los datos al cliente
+            status: register.code,
+            data: register.resp // Enviar los datos al cliente
       });   
     } catch (error) {
 

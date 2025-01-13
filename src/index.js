@@ -12,18 +12,9 @@ app.use(express.json());
 app.use('/api/users', userRoutes);
 
 
-// app.get('/', (req, res) => {
-//   res.send('¡Hola, mundo!');
-// });
-
 app.listen(port, () => {
   console.log(`Servidor escuchando en http://localhost:${port}`);
 
 });
 
-//binanceLogin()
 
-
-// Acceder a la variable DB_HOST
-//console.log(process.env.DB_HOST); 
-//console.log(process.env.PORT);
