@@ -1,6 +1,7 @@
 const pool = require('../config/config');
 const jwt = require('jsonwebtoken');
 const { QueryTypes } = require('sequelize');
+const bcrypt = require('bcrypt');
 
 const consult_user = async (req, res) => {
 
@@ -36,23 +37,42 @@ const consult_user = async (req, res) => {
 } 
 
 const login = async (req, res) => {
-    const { email } = req.body;
+    const { email, password } = req.body;
+
+    if( !email || !password) {
+        return res.json({
+            status: 12,
+            data: 'Faltan parametros' 
+          }); 
+    }
 
     try {
         // Paso 1: Verificar si el correo existe en la base de datos
-        const consult = await pool.query(`SELECT * FROM users WHERE email = :email`, {replacements: { email}, type: QueryTypes.SELECT, plain: true });
+        const consult = await pool.query(`
+            SELECT 
+                email, 
+                password 
+            FROM users
+            WHERE email = :email `, {replacements: { email}, type: QueryTypes.SELECT, plain: true });
 
-        if (consult.length === 0) {
-            return res.status(404).json({ message: 'Usuario no encontrado' });
+        if (!consult) {
+            return res.json({
+                status: 13,
+                message: 'Usuario no encontrado'
+                });
         }
 
         const user = consult;
 
         // Paso 2: Verificar la contraseña (si está almacenada como hash)
-        // const passwordMatch = await bcrypt.compare(password, user.password);
-        // if (!passwordMatch) {
-        //     return res.status(401).json({ message: 'Contraseña incorrecta' });
-        // }
+         const passwordMatch = await bcrypt.compare(password, user.password);
+
+        if (!passwordMatch) {
+             return res.json({
+                status: 14,
+                message: 'Contraseña incorrecta' 
+                });
+        }
 
         // Paso 3: Generar un token JWT
         const token = jwt.sign(
@@ -80,14 +100,17 @@ const login = async (req, res) => {
 
 const register_user = async (req, res) => {
 
-    const { document, name, email, phone  } = req.body;
+    const { document, name, email, phone, password } = req.body;
 
-    if( !document ||  !name || !email ||  !phone) {
+    if( !document ||  !name || !email ||  !phone || !password) {
         return res.json({
             status: 12,
             data: 'Faltan parametros' 
           }); 
     }
+    
+    const saltRounds = 10; // Number of hashing rounds
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     try {
 
@@ -95,13 +118,15 @@ const register_user = async (req, res) => {
             :document,
             :name,
             :email,
-            :phone
+            :phone,
+            :hashedPassword
             )`, {
                 replacements: { 
                     document,
                     name,
                     email,
-                    phone
+                    phone,
+                    hashedPassword
                 },
                 type: QueryTypes.SELECT,
                 plain: true 
