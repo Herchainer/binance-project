@@ -37,7 +37,7 @@ const consult_user = async (req, res) => {
 } 
 
 const login = async (req, res) => {
-    const { email, password } = req.body;
+    const { email, password  } = req.body;
 
     if( !email || !password) {
         return res.json({
@@ -47,9 +47,10 @@ const login = async (req, res) => {
     }
 
     try {
-        // Paso 1: Verificar si el correo existe en la base de datos
+        //Verificar si el correo existe en la base de datos
         const consult = await pool.query(`
             SELECT 
+                id,
                 email, 
                 password 
             FROM users
@@ -64,7 +65,7 @@ const login = async (req, res) => {
 
         const user = consult;
 
-        // Paso 2: Verificar la contraseña (si está almacenada como hash)
+        //Verificar la contraseña (si está almacenada como hash)
          const passwordMatch = await bcrypt.compare(password, user.password);
 
         if (!passwordMatch) {
@@ -74,14 +75,55 @@ const login = async (req, res) => {
                 });
         }
 
-        // Paso 3: Generar un token JWT
+        //Verificar si ya existe un token válido
+        const existingToken = await pool.query(`
+            SELECT 
+                token, 
+                expires_at
+            FROM users_tokens
+            WHERE user_id = :user_id
+            --AND expires_at > NOW()
+            ORDER BY id desc
+            LIMIT 1`,
+            { replacements: { user_id: user.id }, type: QueryTypes.SELECT, plain: true }
+        );
+
+        if (existingToken) {
+            // Si existe un token válido, retornarlo sin generar uno nuevo
+            return res.json({
+                message: 'Login exitoso',
+                token: existingToken.token,
+                user: {
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                },
+            });
+        }
+
+        //Generar un token JWT
         const token = jwt.sign(
             { id: user.id, email: user.email }, // Payload
             process.env.JWT_SECRET, // Reemplaza con una clave secreta segura
             { expiresIn: '1h' } // Expiración del token
         );
 
-        // Paso 4: Enviar respuesta al cliente
+        //Guardar el token en la base de datos
+        const expiresAt = new Date(Date.now() + 3600000); // 1 hora en milisegundos
+        await pool.query(`
+            INSERT INTO users_tokens (user_id, token, expires_at)
+            VALUES (:user_id, :token, :expires_at)`,
+            {
+                replacements: {
+                    user_id: user.id,
+                    token,
+                    expires_at: expiresAt,
+                },
+                type: QueryTypes.INSERT,
+            }
+        );
+
+        //Enviar respuesta al cliente
         return res.json({
             message: 'Login exitoso',
             token: token,
