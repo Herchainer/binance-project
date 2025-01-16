@@ -88,55 +88,100 @@ const login = async (req, res) => {
             { replacements: { user_id: user.id }, type: QueryTypes.SELECT, plain: true }
         );
 
-        if (existingToken) {
-            // Si existe un token válido, retornarlo sin generar uno nuevo
+        if(!existingToken){
+            const token = jwt.sign(
+                { id: user.id, email: user.email }, // Payload
+                process.env.JWT_SECRET, // Reemplaza con una clave secreta segura
+                { expiresIn: '1h' } // Expiración del token
+            );
+
+            //Guardar el token en la base de datos
+            const expiresAt = new Date(Date.now() + 3600000); // 1 hora en milisegundos
+            await pool.query(`
+                INSERT INTO users_tokens (user_id, token, expires_at)
+                VALUES (:user_id, :token, :expires_at)`,
+                {
+                    replacements: {
+                        user_id: user.id,
+                        token,
+                        expires_at: expiresAt,
+                    },
+                    type: QueryTypes.INSERT,
+                }
+            );
+
+            //Enviar respuesta al cliente
             return res.json({
+                status: 10,
                 message: 'Login exitoso',
-                token: existingToken.token,
+                token: token,
                 user: {
                     id: user.id,
                     name: user.name,
                     email: user.email,
-                },
+                }
+            });
+
+        } else {
+            const currentDate = new Date().toISOString();
+            // Convertir a objetos Date para comparar
+            const tokenDate = new Date(existingToken.expires_at);
+            const now = new Date(currentDate);
+
+                // Comparar fechas
+            if (tokenDate > now) {
+                console.log("El token sigue siendo válido.");
+
+                return res.json({
+                    status: 10,
+                    message: 'Login exitoso',
+                    token: existingToken.token,
+                    user: {
+                        id: user.id,
+                        name: user.name,
+                        email: user.email,
+                    },
+                });
+
+            } else {
+                console.log("El token ha expirado.");
+                //Generar un token JWT
+                const token = jwt.sign(
+                    { id: user.id, email: user.email }, // Payload
+                    process.env.JWT_SECRET, // Reemplaza con una clave secreta segura
+                    { expiresIn: '1h' } // Expiración del token
+                );
+
+                //Guardar el token en la base de datos
+                const expiresAt = new Date(Date.now() + 3600000); // 1 hora en milisegundos
+                await pool.query(`
+                    INSERT INTO users_tokens (user_id, token, expires_at)
+                    VALUES (:user_id, :token, :expires_at)`,
+                    {
+                        replacements: {
+                            user_id: user.id,
+                            token,
+                            expires_at: expiresAt,
+                        },
+                        type: QueryTypes.INSERT,
+                    }
+                );
+            }
+            //Enviar respuesta al cliente
+            return res.json({
+                status: 10,
+                message: 'Login exitoso',
+                token: token,
+                user: {
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                }
             });
         }
-
-        //Generar un token JWT
-        const token = jwt.sign(
-            { id: user.id, email: user.email }, // Payload
-            process.env.JWT_SECRET, // Reemplaza con una clave secreta segura
-            { expiresIn: '1h' } // Expiración del token
-        );
-
-        //Guardar el token en la base de datos
-        const expiresAt = new Date(Date.now() + 3600000); // 1 hora en milisegundos
-        await pool.query(`
-            INSERT INTO users_tokens (user_id, token, expires_at)
-            VALUES (:user_id, :token, :expires_at)`,
-            {
-                replacements: {
-                    user_id: user.id,
-                    token,
-                    expires_at: expiresAt,
-                },
-                type: QueryTypes.INSERT,
-            }
-        );
-
-        //Enviar respuesta al cliente
-        return res.json({
-            message: 'Login exitoso',
-            token: token,
-            user: {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-            }
-        });
-
     } catch (error) {
         console.error(error);
-        return res.status(500).json({ message: 'Error interno del servidor' });
+        return res.status(500).json({ status: 500, message: 'Error interno del servidor' });
     }
 };
 
