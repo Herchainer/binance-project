@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const { QueryTypes } = require('sequelize');
 const bcrypt = require('bcrypt');
 
-const consult_user = async (req, res) => {
+const consultUser = async (req, res) => {
 
     const {document} = req.body;
 
@@ -45,6 +45,20 @@ const login = async (req, res) => {
             data: 'Faltan parametros' 
           }); 
     }
+
+    const validateEmail = (email) => {
+        // Regular expression for validating an email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    };
+
+    if (!validateEmail(email)) {
+        return res.json({
+            status: 11,
+            data: 'Correo electrónico no válido'
+        });
+    }
+
 
     try {
         //Verificar si el correo existe en la base de datos
@@ -166,8 +180,7 @@ const login = async (req, res) => {
                         type: QueryTypes.INSERT,
                     }
                 );
-            }
-            //Enviar respuesta al cliente
+                //Enviar respuesta al cliente
             return res.json({
                 status: 10,
                 message: 'Login exitoso',
@@ -178,6 +191,7 @@ const login = async (req, res) => {
                     email: user.email,
                 }
             });
+            }
         }
     } catch (error) {
         console.error(error);
@@ -185,7 +199,7 @@ const login = async (req, res) => {
     }
 };
 
-const register_user = async (req, res) => {
+const registerUser = async (req, res) => {
 
     const { document, name, email, phone, password } = req.body;
 
@@ -195,6 +209,20 @@ const register_user = async (req, res) => {
             data: 'Faltan parametros' 
           }); 
     }
+
+    const validateEmail = (email) => {
+        // Regular expression for validating an email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    };
+
+    if (!validateEmail(email)) {
+        return res.json({
+            status: 11,
+            data: 'Correo electrónico no válido'
+        });
+    }
+
     
     const saltRounds = 10; // Number of hashing rounds
     const hashedPassword = await bcrypt.hash(password, saltRounds);
@@ -243,10 +271,60 @@ const register_user = async (req, res) => {
 
 }
 
+const updateUser = async (req, res) => {
+    const { id, name, email } = req.body;
+
+    // Validate required parameters
+    if (!id || !name && !email) {
+        return res.json({
+            status: 12,
+            data: 'Faltan parametros'
+        });
+    }
+
+    try {
+        // Call the database function to update the user
+        const update = await pool.query(
+            `SELECT * FROM update_user(
+                :id,
+                :name,
+                :email
+            )`, {
+                replacements: {
+                    id,
+                    name,
+                    email,
+                },
+                type: QueryTypes.SELECT,
+                plain: true
+            });
+
+        // Check if the user update was successful
+        if (update.code === 14) {
+            return res.json({
+                status: 14,
+                data: 'Usuario no encontrado'
+            });
+        }
+
+        // Respond with the result of the update operation
+        return res.json({
+            status: update.code,
+            data: update.resp
+        });
+    } catch (error) {
+        // Handle errors
+        return res.status(500).json({
+            status: 500,
+            error: 'Error en la consulta a la base de datos'
+        });
+    }
+};
 
 
 module.exports = {
-    consult_user,
+    consultUser,
     login,
-    register_user
-}
+    registerUser,
+    updateUser
+}   
